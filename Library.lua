@@ -4650,7 +4650,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         if WindowInfo.Center then
-            MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset / 2 + 100, 0.5, -MainFrame.Size.Y.Offset / 2 + 50)
+            MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset / 2 + 200, 0.5, -MainFrame.Size.Y.Offset / 2 + 80)
         end
 
         --// Top Bar \\-
