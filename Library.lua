@@ -80,10 +80,10 @@ local Library = {
     Scheme = {
         BackgroundColor = Color3.fromRGB(15, 15, 15),
         MainColor = Color3.fromRGB(25, 25, 25),
-        AccentColor = Color3.fromRGB(125, 85, 255),
+        AccentColor = Color3.fromRGB(85, 255, 127),
         OutlineColor = Color3.fromRGB(40, 40, 40),
         FontColor = Color3.new(1, 1, 1),
-        Font = Font.fromEnum(Enum.Font.Code),
+        Font = Font.fromEnum(Enum.Font.Jura),
 
         Red = Color3.fromRGB(255, 50, 50),
         Dark = Color3.new(0, 0, 0),
@@ -4701,7 +4701,7 @@ function Library:CreateWindow(WindowInfo)
         SearchBox = New("TextBox", {
             AnchorPoint = Vector2.new(0, 0.5),
             BackgroundColor3 = "MainColor",
-            PlaceholderText = "Search",
+            PlaceholderText = "Element Search...",
             Position = UDim2.new(0.3, 8, 0.5, 0),
             Size = UDim2.new(0.7, -57, 1, -16),
             TextScaled = true,
@@ -4737,7 +4737,7 @@ function Library:CreateWindow(WindowInfo)
             })
         end
 
-        local MoveIcon = Library:GetIcon("move")
+        local MoveIcon = Library:GetIcon("cast")
         if MoveIcon then
             New("ImageLabel", {
                 AnchorPoint = Vector2.new(1, 0.5),
