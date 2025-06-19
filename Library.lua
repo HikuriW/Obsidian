@@ -4737,7 +4737,7 @@ function Library:CreateWindow(WindowInfo)
             })
         end
 
-        local MoveIcon = Library:GetIcon("cast")
+        local MoveIcon = Library:GetIcon("hard-drive")
         if MoveIcon then
             New("ImageLabel", {
                 AnchorPoint = Vector2.new(1, 0.5),
