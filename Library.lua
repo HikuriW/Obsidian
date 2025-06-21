@@ -5687,25 +5687,22 @@ function Library:CreateWindow(WindowInfo)
         MainFrame.Visible = Library.Toggled
         ModalElement.Modal = Library.Toggled
 
-        if Library.Toggled and not Library.IsMobile then
+        if Library.Toggled and not Library.IsMobile then 
             local OldMouseIconEnabled = UserInputService.MouseIconEnabled
             pcall(function()
                 RunService:UnbindFromRenderStep("ShowCursor")
             end)
-            RunService:BindToRenderStep("ShowCursor", Enum.RenderPriority.Last.Value, function()
-                if Library.BreakShiftlock then
-                    UserInputService.MouseIconEnabled = not Library.ShowCustomCursor
-                end
 
-                if Library.BreakShiftlock then
-                    Cursor.Position = UDim2.fromOffset(Mouse.X, Mouse.Y)
-                    Cursor.Visible = Library.ShowCustomCursor
-                end
+            if not shared.BreakShiftlock then return end
+
+            RunService:BindToRenderStep("ShowCursor", Enum.RenderPriority.Last.Value, function()
+                UserInputService.MouseIconEnabled = not Library.ShowCustomCursor
+
+                Cursor.Position = UDim2.fromOffset(Mouse.X, Mouse.Y)
+                Cursor.Visible = Library.ShowCustomCursor
 
                 if not (Library.Toggled and ScreenGui and ScreenGui.Parent) then
-                    if Library.BreakShiftlock then
-                        UserInputService.MouseIconEnabled = OldMouseIconEnabled
-                    end
+                    UserInputService.MouseIconEnabled = OldMouseIconEnabled
                     Cursor.Visible = false
                     RunService:UnbindFromRenderStep("ShowCursor")
                 end
