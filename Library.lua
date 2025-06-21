@@ -5677,6 +5677,14 @@ function Library:CreateWindow(WindowInfo)
         return Tab
     end
 
+    function Library:UpdateModal()
+	    if not Library.BreakShiftlock then
+		    ModalElement.Modal = Library.Toggled
+        else
+		    ModalElement.Modal = false
+		end
+	end
+
     function Library:Toggle(Value: boolean?)
         if typeof(Value) == "boolean" then
             Library.Toggled = Value
@@ -5685,29 +5693,9 @@ function Library:CreateWindow(WindowInfo)
         end
 
         MainFrame.Visible = Library.Toggled
-        ModalElement.Modal = Library.Toggled
+		Library:UpdateModal()
 
-        if Library.Toggled and not Library.IsMobile then 
-            local OldMouseIconEnabled = UserInputService.MouseIconEnabled
-            pcall(function()
-                RunService:UnbindFromRenderStep("ShowCursor")
-            end)
-
-            if not shared.BreakShiftlock then return end
-
-            RunService:BindToRenderStep("ShowCursor", Enum.RenderPriority.Last.Value, function()
-                UserInputService.MouseIconEnabled = not Library.ShowCustomCursor
-
-                Cursor.Position = UDim2.fromOffset(Mouse.X, Mouse.Y)
-                Cursor.Visible = Library.ShowCustomCursor
-
-                if not (Library.Toggled and ScreenGui and ScreenGui.Parent) then
-                    UserInputService.MouseIconEnabled = OldMouseIconEnabled
-                    Cursor.Visible = false
-                    RunService:UnbindFromRenderStep("ShowCursor")
-                end
-            end)
-        elseif not Library.Toggled then
+        if not Library.Toggled then
             TooltipLabel.Visible = false
             for _, Option in pairs(Library.Options) do
                 if Option.Type == "ColorPicker" then
@@ -5725,7 +5713,7 @@ function Library:CreateWindow(WindowInfo)
     end
 
     if Library.IsMobile then
-        local ToggleButton = Library:AddDraggableButton("Toggle", function()
+        local ToggleButton = Library:AddDraggableButton("OPEN", function()
             Library:Toggle()
         end)
 
