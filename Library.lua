@@ -360,7 +360,7 @@ local function GetPlayers(ExcludeLocalPlayer: boolean?)
     end
 
     table.sort(PlayerList, function(Player1, Player2)
-        return Player1.Name:lower() < Player2.Name:lower()
+        return Player1.DisplayName:lower() < Player2.DisplayName:lower()
     end)
 
     return PlayerList
