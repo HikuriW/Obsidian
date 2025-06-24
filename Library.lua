@@ -4775,14 +4775,14 @@ function Library:CreateWindow(WindowInfo)
         })
 
         --// Footer
-        New("TextLabel", {
+        local FooterLabel = New("TextLabel", {
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
             Text = shared.Footer,
             TextSize = 14,
             TextTransparency = 0.5,
             Parent = BottomBar,
-        })
+        }) shared.FooterLabel = FooterLabel
 
         --// Resize Button
         if WindowInfo.Resizable then
