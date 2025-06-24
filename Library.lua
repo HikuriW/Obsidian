@@ -4776,7 +4776,7 @@ function Library:CreateWindow(WindowInfo)
         })
 
         --// Footer
-        New("TextLabel", {
+        local Footer = New("TextLabel", {
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
             Text = WindowInfo.Footer,
@@ -5676,6 +5676,10 @@ function Library:CreateWindow(WindowInfo)
 
         return Tab
     end
+
+	function Library:SetFooter(Text)
+        Footer.Text = Text
+	end
 
     function Library:UpdateModal()
 	    if not Library.BreakShiftlock then
