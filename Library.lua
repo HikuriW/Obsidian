@@ -159,7 +159,6 @@ local Templates = {
     --// Library \\--
     Window = {
         Title = "No Title",
-        Footer = "No Footer",
         Position = UDim2.fromOffset(6, 6),
         Size = UDim2.fromOffset(720, 600),
         IconSize = UDim2.fromOffset(30, 30),
@@ -4776,10 +4775,10 @@ function Library:CreateWindow(WindowInfo)
         })
 
         --// Footer
-        local Footer = New("TextLabel", {
+        New("TextLabel", {
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
-            Text = WindowInfo.Footer,
+            Text = shared.Footer,
             TextSize = 14,
             TextTransparency = 0.5,
             Parent = BottomBar,
@@ -5676,11 +5675,6 @@ function Library:CreateWindow(WindowInfo)
 
         return Tab
     end
-
-	function Library:SetFooter(Text)
-            Footer.Text = Text 
-            WindowInfo.Footer = Text
-	end
 
     function Library:UpdateModal()
 	    if not Library.BreakShiftlock then
