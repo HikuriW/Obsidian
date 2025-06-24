@@ -5678,7 +5678,8 @@ function Library:CreateWindow(WindowInfo)
     end
 
 	function Library:SetFooter(Text)
-        Footer.Text = Text
+            Footer.Text = Text 
+            WindowInfo.Footer = Text
 	end
 
     function Library:UpdateModal()
