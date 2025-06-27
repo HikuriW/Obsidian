@@ -358,12 +358,18 @@ local function GetPlayers(ExcludeLocalPlayer: boolean?)
         end
     end
 
-    table.sort(PlayerList, function(Player1, Player2)
-        return Player1.DisplayName:lower() < Player2.DisplayName:lower()
+    local PlayerNames = {}
+    for _, Player in ipairs(PlayerList) do
+        table.insert(PlayerNames, Player.DisplayName ~= "" and Player.DisplayName or Player.Name)
+    end
+
+    table.sort(PlayerNames, function(A, B)
+        return A:lower() < B:lower()
     end)
 
-    return PlayerList
+    return PlayerNames
 end
+
 local function GetTeams()
     local TeamList = Teams:GetTeams()
 
