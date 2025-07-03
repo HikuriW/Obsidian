@@ -844,6 +844,9 @@ local FetchIcons, Icons = pcall(function()
     )()
 end)
 function Library:GetIcon(IconName: string)
+    if tonumber(IconName) then
+        return "rbxassetid://" .. IconName
+    end
     if not FetchIcons then
         return
     end
