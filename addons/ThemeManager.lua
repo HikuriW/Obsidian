@@ -1,4 +1,6 @@
-local cloneref = (cloneref or clonereference or function(instance: any) return instance end)
+local cloneref = (cloneref or clonereference or function(instance: any)
+    return instance
+end)
 local httpService = cloneref(game:GetService("HttpService"))
 local httprequest = (syn and syn.request) or request or http_request or (http and http.request)
 local getassetfunc = getcustomasset or getsynasset
@@ -6,7 +8,6 @@ local isfolder, isfile, listfiles = isfolder, isfile, listfiles
 
 if typeof(copyfunction) == "function" then
     -- Fix is_____ functions for shitsploits, those functions should never error, only return a boolean.
-
     local
         isfolder_copy,
         isfile_copy,
@@ -187,6 +188,47 @@ local ThemeManager = {} do
         writefile(self.Folder .. "/themes/default.txt", theme)
     end
 
+    function ThemeManager:SetDefaultTheme(theme)
+        assert(self.Library, "Must set ThemeManager.Library first!")
+        assert(not self.AppliedToTab, "Cannot set default theme after applying ThemeManager to a tab!")
+
+        local FinalTheme = {}
+        local LibraryScheme = {}
+        local fields = { "FontColor", "MainColor", "AccentColor", "BackgroundColor", "OutlineColor" }
+        for _, field in pairs(fields) do
+            if typeof(theme[field]) == "Color3" then
+                FinalTheme[field] = `#{theme[field]:ToHex()}`
+                LibraryScheme[field] = theme[field]
+            elseif typeof(theme[field]) == "string" then
+                FinalTheme[field] = if theme[field]:sub(1, 1) == "#" then theme[field] else `#{theme[field]}`
+                LibraryScheme[field] = Color3.fromHex(theme[field])
+            else
+                FinalTheme[field] = ThemeManager.BuiltInThemes["Default"][2][field]
+                LibraryScheme[field] = Color3.fromHex(ThemeManager.BuiltInThemes["Default"][2][field])
+            end
+        end
+
+        if typeof(theme["FontFace"]) == "EnumItem" then
+            FinalTheme["FontFace"] = theme["FontFace"].Name
+            LibraryScheme["Font"] = Font.fromEnum(theme["FontFace"])
+        elseif typeof(theme["FontFace"]) == "string" then
+            FinalTheme["FontFace"] = theme["FontFace"]
+            LibraryScheme["Font"] = Font.fromEnum(Enum.Font[theme["FontFace"]])
+        else
+            FinalTheme["FontFace"] = "Code"
+            LibraryScheme["Font"] = Font.fromEnum(Enum.Font.Code)
+        end
+
+        for _, field in pairs({ "Red", "Dark", "White" }) do
+            LibraryScheme[field] = self.Library.Scheme[field]
+        end
+
+        self.Library.Scheme = LibraryScheme
+        self.BuiltInThemes["Default"] = { 1, FinalTheme }
+
+        self.Library:UpdateColorsUsingRegistry()
+    end
+
     function ThemeManager:SaveCustomTheme(file)
         if file:gsub(" ", "") == "" then
             return self.Library:Notify("Invalid file name for theme (empty)", 3)
@@ -204,7 +246,7 @@ local ThemeManager = {} do
     end
 
     function ThemeManager:Delete(name)
-        if (not name) then
+        if not name then
             return false, "no config file is selected"
         end
 
