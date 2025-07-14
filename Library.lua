@@ -159,6 +159,7 @@ local Templates = {
     --// Library \\--
     Window = {
         Title = "No Title",
+        Footer = "No Footer",
         Position = UDim2.fromOffset(6, 6),
         Size = UDim2.fromOffset(720, 600),
         IconSize = UDim2.fromOffset(30, 30),
@@ -168,7 +169,7 @@ local Templates = {
         CornerRadius = 4,
         NotifySide = "Right",
         ShowCustomCursor = true,
-        Font = Enum.Font.Jura,
+        Font = Enum.Font.Code,
         ToggleKeybind = Enum.KeyCode.RightControl,
         MobileButtonsSide = "Left",
     },
@@ -225,6 +226,25 @@ local Templates = {
         Changed = function() end,
 
         Disabled = false,
+        Visible = true,
+    },
+    Viewport = {
+        Object = nil,
+        Camera = nil,
+        Clone = true,
+        AutoFocus = true,
+        Interactive = false,
+        Height = 200,
+        Visible = true,
+    },
+    Image = {
+        Image = "",
+        Transparency = 0,
+        Color = Color3.new(1, 1, 1),
+        RectOffset = Vector2.zero,
+        RectSize = Vector2.zero,
+        ScaleType = Enum.ScaleType.Fit,
+        Height = 200,
         Visible = true,
     },
 
@@ -844,9 +864,6 @@ local FetchIcons, Icons = pcall(function()
     )()
 end)
 function Library:GetIcon(IconName: string)
-    if tonumber(IconName) then
-        return "rbxassetid://" .. IconName
-    end
     if not FetchIcons then
         return
     end
@@ -1101,19 +1118,20 @@ function Library:SafeCallback(Func: (...any) -> ...any, ...: any)
         return
     end
 
-    local Success, Response = pcall(Func, ...)
-    if Success then
-        return Response
+    local Result = table.pack(xpcall(Func, function(Error)
+        task.defer(error, debug.traceback(Error, 2))
+        if Library.NotifyOnError then
+            Library:Notify(Error)
+        end
+
+        return Error
+    end, ...))
+
+    if not Result[1] then
+        return nil
     end
 
-    local Traceback = debug.traceback():gsub("\n", " ")
-    local _, i = Traceback:find(":%d+ ")
-    Traceback = Traceback:sub(i + 1):gsub(" :", ":")
-
-    task.defer(error, Response .. " - " .. Traceback)
-    if Library.NotifyOnError then
-        Library:Notify(Response)
-    end
+    return table.unpack(Result, 2, Result.n)
 end
 
 function Library:MakeDraggable(UI: GuiObject, DragFrame: GuiObject, IgnoreToggled: boolean?, IsMainWindow: boolean?)
@@ -4127,6 +4145,416 @@ do
         Options[Idx] = Dropdown
 
         return Dropdown
+    end
+
+	    function Funcs:AddViewport(Idx, Info)
+        Info = Library:Validate(Info, Templates.Viewport)
+
+        local Groupbox = self
+        local Container = Groupbox.Container
+
+        local Dragging, Pinching = false, false
+        local LastMousePos, LastPinchDist = nil, 0
+
+        local Viewport = {
+            Object = if Info.Clone then Info.Object:Clone() else Info.Object,
+            Camera = if not Info.Camera then Instance.new("Camera") else Info.Camera,
+            Interactive = Info.Interactive,
+            AutoFocus = Info.AutoFocus,
+            Visible = Info.Visible,
+            Type = "Viewport",
+        }
+
+        assert(
+            typeof(Viewport.Object) == "Instance" and (Viewport.Object:IsA("BasePart") or Viewport.Object:IsA("Model")),
+            "Instance must be a BasePart or Model."
+        )
+
+        assert(
+            typeof(Viewport.Camera) == "Instance" and Viewport.Camera:IsA("Camera"),
+            "Camera must be a valid Camera instance."
+        )
+
+        local function GetModelSize(model)
+            if model:IsA("BasePart") then
+                return model.Size
+            end
+
+            return select(2, model:GetBoundingBox())
+        end
+
+        local function FocusCamera()
+            local ModelSize = GetModelSize(Viewport.Object)
+            local MaxExtent = math.max(ModelSize.X, ModelSize.Y, ModelSize.Z)
+            local CameraDistance = MaxExtent * 2
+            local ModelPosition = Viewport.Object:GetPivot().Position
+
+            Viewport.Camera.CFrame =
+                CFrame.new(ModelPosition + Vector3.new(0, MaxExtent / 2, CameraDistance), ModelPosition)
+        end
+
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, Info.Height),
+            Visible = Viewport.Visible,
+            Parent = Container,
+        })
+
+        local Box = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = "MainColor",
+            BorderColor3 = "OutlineColor",
+            BorderSizePixel = 1,
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.fromScale(1, 1),
+            Parent = Holder,
+        })
+
+        New("UIPadding", {
+            PaddingBottom = UDim.new(0, 3),
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+            PaddingTop = UDim.new(0, 4),
+            Parent = Box,
+        })
+
+        local ViewportFrame = New("ViewportFrame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Parent = Box,
+            CurrentCamera = Viewport.Camera,
+            Active = Viewport.Interactive,
+        })
+
+        ViewportFrame.MouseEnter:Connect(function()
+            if not Viewport.Interactive then
+                return
+            end
+
+            for _, Side in pairs(Groupbox.Tab.Sides) do
+                Side.ScrollingEnabled = false
+            end
+        end)
+
+        ViewportFrame.MouseLeave:Connect(function()
+            if not Viewport.Interactive then
+                return
+            end
+
+            for _, Side in pairs(Groupbox.Tab.Sides) do
+                Side.ScrollingEnabled = true
+            end
+        end)
+
+        ViewportFrame.InputBegan:Connect(function(input)
+            if not Viewport.Interactive then
+                return
+            end
+
+            if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                Dragging = true
+                LastMousePos = input.Position
+            elseif input.UserInputType == Enum.UserInputType.Touch and not Pinching then
+                Dragging = true
+                LastMousePos = input.Position
+            end
+        end)
+
+        Library:GiveSignal(UserInputService.InputEnded:Connect(function(input)
+            if not Viewport.Interactive then
+                return
+            end
+
+            if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                Dragging = false
+            elseif input.UserInputType == Enum.UserInputType.Touch then
+                Dragging = false
+            end
+        end))
+
+        Library:GiveSignal(UserInputService.InputChanged:Connect(function(input)
+            if not Viewport.Interactive or not Dragging or Pinching then
+                return
+            end
+
+            if
+                input.UserInputType == Enum.UserInputType.MouseMovement
+                or input.UserInputType == Enum.UserInputType.Touch
+            then
+                local MouseDelta = input.Position - LastMousePos
+                LastMousePos = input.Position
+
+                local Position = Viewport.Object:GetPivot().Position
+                local Camera = Viewport.Camera
+
+                local RotationY = CFrame.fromAxisAngle(Vector3.new(0, 1, 0), -MouseDelta.X * 0.01)
+                Camera.CFrame = CFrame.new(Position) * RotationY * CFrame.new(-Position) * Camera.CFrame
+
+                local RotationX = CFrame.fromAxisAngle(Camera.CFrame.RightVector, -MouseDelta.Y * 0.01)
+                local PitchedCFrame = CFrame.new(Position) * RotationX * CFrame.new(-Position) * Camera.CFrame
+
+                if PitchedCFrame.UpVector.Y > 0.1 then
+                    Camera.CFrame = PitchedCFrame
+                end
+            end
+        end))
+
+        ViewportFrame.InputChanged:Connect(function(input)
+            if not Viewport.Interactive then
+                return
+            end
+
+            if input.UserInputType == Enum.UserInputType.MouseWheel then
+                local ZoomAmount = input.Position.Z * 2
+                Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * ZoomAmount
+            end
+        end)
+
+        Library:GiveSignal(UserInputService.TouchPinch:Connect(function(touchPositions, scale, velocity, state)
+            if not Viewport.Interactive or not Library:MouseIsOverFrame(ViewportFrame, touchPositions[1]) then
+                return
+            end
+
+            if state == Enum.UserInputState.Begin then
+                Pinching = true
+                Dragging = false
+                LastPinchDist = (touchPositions[1] - touchPositions[2]).Magnitude
+            elseif state == Enum.UserInputState.Change then
+                local currentDist = (touchPositions[1] - touchPositions[2]).Magnitude
+                local delta = (currentDist - LastPinchDist) * 0.1
+                LastPinchDist = currentDist
+                Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * delta
+            elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
+                Pinching = false
+            end
+        end))
+
+        Viewport.Object.Parent = ViewportFrame
+        if Viewport.AutoFocus then
+            FocusCamera()
+        end
+
+        function Viewport:SetObject(Object: Instance, Clone: boolean?)
+            assert(Object, "Object cannot be nil.")
+
+            if Clone then
+                Object = Object:Clone()
+            end
+
+            if Viewport.Object then
+                Viewport.Object:Destroy()
+            end
+
+            Viewport.Object = Object
+            Viewport.Object.Parent = ViewportFrame
+
+            Groupbox:Resize()
+        end
+
+        function Viewport:SetHeight(Height: number)
+            assert(Height > 0, "Height must be greater than 0.")
+
+            Holder.Size = UDim2.new(1, 0, 0, Height)
+            Groupbox:Resize()
+        end
+
+        function Viewport:Focus()
+            if not Viewport.Object then
+                return
+            end
+
+            FocusCamera()
+        end
+
+        function Viewport:SetCamera(Camera: Instance)
+            assert(
+                Camera and typeof(Camera) == "Instance" and Camera:IsA("Camera"),
+                "Camera must be a valid Camera instance."
+            )
+
+            Viewport.Camera = Camera
+            ViewportFrame.CurrentCamera = Camera
+        end
+
+        function Viewport:SetInteractive(Interactive: boolean)
+            Viewport.Interactive = Interactive
+            ViewportFrame.Active = Interactive
+        end
+
+        function Viewport:SetVisible(Visible: boolean)
+            Viewport.Visible = Visible
+
+            Holder.Visible = Viewport.Visible
+            Groupbox:Resize()
+        end
+
+        Groupbox:Resize()
+
+        Viewport.Holder = Holder
+        table.insert(Groupbox.Elements, Viewport)
+
+        Options[Idx] = Viewport
+
+        return Viewport
+    end
+
+    function Funcs:AddImage(Idx, Info)
+        Info = Library:Validate(Info, Templates.Image)
+
+        local Groupbox = self
+        local Container = Groupbox.Container
+
+        local Image = {
+            Image = Info.Image,
+            Color = Info.Color,
+            RectOffset = Info.RectOffset,
+            RectSize = Info.RectSize,
+            Height = Info.Height,
+            ScaleType = Info.ScaleType,
+            Transparency = Info.Transparency,
+
+            Visible = Info.Visible,
+            Type = "Image",
+        }
+
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, Info.Height),
+            Visible = Image.Visible,
+            Parent = Container,
+        })
+
+        local Box = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = "MainColor",
+            BorderColor3 = "OutlineColor",
+            BorderSizePixel = 1,
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.fromScale(1, 1),
+            Parent = Holder,
+        })
+
+        New("UIPadding", {
+            PaddingBottom = UDim.new(0, 3),
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+            PaddingTop = UDim.new(0, 4),
+            Parent = Box,
+        })
+
+        local ImageProperties = {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Image = Image.Image,
+            ImageTransparency = Image.Transparency,
+            ImageColor3 = Image.Color,
+            ImageRectOffset = Image.RectOffset,
+            ImageRectSize = Image.RectSize,
+            ScaleType = Image.ScaleType,
+            Parent = Box,
+        }
+
+        if
+            not (
+                ImageProperties.Image:match("rbxasset")
+                or ImageProperties.Image:match("roblox%.com/asset/%?id=")
+                or ImageProperties.Image:match("rbxthumb://type=AvatarHeadShot")
+            )
+        then
+            local Icon = Library:GetIcon(ImageProperties.Image)
+            assert(Icon, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
+
+            ImageProperties.Image = Icon.Url
+            ImageProperties.ImageRectOffset = Icon.ImageRectOffset
+            ImageProperties.ImageRectSize = Icon.ImageRectSize
+        end
+
+        local ImageLabel = New("ImageLabel", ImageProperties)
+
+        function Image:SetHeight(Height: number)
+            assert(Height > 0, "Height must be greater than 0.")
+
+            Image.Height = Height
+            Holder.Size = UDim2.new(1, 0, 0, Height)
+            Groupbox:Resize()
+        end
+
+        function Image:SetImage(NewImage: string)
+            assert(typeof(NewImage) == "string", "Image must be a string.")
+
+            if
+                not (
+                    NewImage:match("rbxasset")
+                    or NewImage:match("roblox%.com/asset/%?id=")
+                    or NewImage:match("rbxthumb://type=AvatarHeadShot")
+                )
+            then
+                local Icon = Library:GetIcon(NewImage)
+                assert(Icon, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
+
+                NewImage = Icon.Url
+                Image.RectOffset = Icon.ImageRectOffset
+                Image.RectSize = Icon.ImageRectSize
+            end
+
+            ImageLabel.Image = NewImage
+            Image.Image = NewImage
+        end
+
+        function Image:SetColor(Color: Color3)
+            assert(typeof(Color) == "Color3", "Color must be a Color3 value.")
+
+            ImageLabel.ImageColor3 = Color
+            Image.Color = Color
+        end
+
+        function Image:SetRectOffset(RectOffset: Vector2)
+            assert(typeof(RectOffset) == "Vector2", "RectOffset must be a Vector2 value.")
+
+            ImageLabel.ImageRectOffset = RectOffset
+            Image.RectOffset = RectOffset
+        end
+
+        function Image:SetRectSize(RectSize: Vector2)
+            assert(typeof(RectSize) == "Vector2", "RectSize must be a Vector2 value.")
+
+            ImageLabel.ImageRectSize = RectSize
+            Image.RectSize = RectSize
+        end
+
+        function Image:SetScaleType(ScaleType: Enum.ScaleType)
+            assert(
+                typeof(ScaleType) == "EnumItem" and ScaleType:IsA("ScaleType"),
+                "ScaleType must be a valid Enum.ScaleType."
+            )
+
+            ImageLabel.ScaleType = ScaleType
+            Image.ScaleType = ScaleType
+        end
+
+        function Image:SetTransparency(Transparency: number)
+            assert(typeof(Transparency) == "number", "Transparency must be a number between 0 and 1.")
+            assert(Transparency >= 0 and Transparency <= 1, "Transparency must be between 0 and 1.")
+
+            ImageLabel.ImageTransparency = Transparency
+            Image.Transparency = Transparency
+        end
+
+        function Image:SetVisible(Visible: boolean)
+            Image.Visible = Visible
+
+            Holder.Visible = Image.Visible
+            Groupbox:Resize()
+        end
+
+        Groupbox:Resize()
+
+        Image.Holder = Holder
+        table.insert(Groupbox.Elements, Image)
+
+        Options[Idx] = Image
+
+        return Image
     end
 
     function Funcs:AddDependencyBox()
